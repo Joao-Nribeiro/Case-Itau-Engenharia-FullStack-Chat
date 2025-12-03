@@ -17,6 +17,8 @@ async def websocket_chat(websocket: WebSocket):
             text = data.get("text", "")
 
             if msg_type == "join":
+                manager.register_user(websocket, username)
+
                 join_message = {
                     "type": "system",
                     "message": f"{username} entrou no chat."
@@ -37,7 +39,8 @@ async def websocket_chat(websocket: WebSocket):
                     "type": "message",
                     "username": username,
                     "text": text,
-                    "status": "delivered"
+                    "status": "delivered",
+                    "timestamp": data.get("timestamp")
                 }
                 await manager.broadcast(formatted)
                 continue
@@ -51,5 +54,16 @@ async def websocket_chat(websocket: WebSocket):
 
     except Exception:
         pass
+
     finally:
+        username = manager.get_username(websocket)
+
         manager.disconnect(websocket)
+
+        if username:
+            leave_message = {
+                "type": "system",
+                "message": f"{username} saiu do chat."
+            }
+
+            await manager.broadcast(leave_message)

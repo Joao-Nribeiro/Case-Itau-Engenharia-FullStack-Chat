@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import Header from "../components/Header";
 import Button from "../components/Button";
 import { createSocket } from "../services/websocket";
 import { v4 as uuid } from "uuid";
@@ -39,7 +38,13 @@ export default function Chat() {
       }
 
       if (data.type === "system") {
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "system",
+            text: data.message,
+          },
+        ]);
         return;
       }
 
@@ -91,6 +96,7 @@ export default function Chat() {
       username,
       text: msg,
       status: "sent",
+      timestamp: Date.now(),
     };
 
     socketRef.current.send(JSON.stringify(messageData));
@@ -99,10 +105,16 @@ export default function Chat() {
     setMsg("");
   }
 
+  function formatTime(ts) {
+    if (!ts) return "";
+    return new Date(ts).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
   return (
     <div>
-      <Header />
-
       <div
         style={{
           maxWidth: "600px",
@@ -136,7 +148,7 @@ export default function Chat() {
                     margin: "10px 0",
                   }}
                 >
-                  {m.message}
+                  {m.text}
                 </div>
               );
             }
@@ -166,23 +178,28 @@ export default function Chat() {
 
                   {m.text}
 
-                  {isMine && (
-                    <div
-                      style={{
-                        marginTop: "5px",
-                        fontSize: "12px",
-                        textAlign: "right",
-                        color: "#d9d9d9",
-                      }}
-                    >
-                      {m.status === "sent" && "•"}
-                      {m.status === "received" && "✓"}
-                      {m.status === "delivered" && "✓✓"}
-                      {m.status === "read" && (
-                        <span style={{ color: "#00c3ff" }}>✓✓</span>
-                      )}
-                    </div>
-                  )}
+                  <div
+                    style={{
+                      marginTop: "5px",
+                      fontSize: "11px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      opacity: 0.8,
+                    }}
+                  >
+                    <span>{formatTime(m.timestamp)}</span>
+
+                    {isMine && (
+                      <span style={{ marginLeft: "10px" }}>
+                        {m.status === "sent" && "•"}
+                        {m.status === "received" && "✓"}
+                        {m.status === "delivered" && "✓✓"}
+                        {m.status === "read" && (
+                          <span style={{ color: "#00c3ff" }}>✓✓</span>
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             );
