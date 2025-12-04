@@ -13,30 +13,17 @@ export default function Home() {
   }
 
   return (
-    <div>
-
-      <div style={{
-        maxWidth: "400px",
-        margin: "60px auto",
-        padding: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-        textAlign: "center"
-      }}>
-        <h2>Entre no Chat</h2>
+    <div className="w-full flex justify-center">
+      <div className="w-full max-w-sm mt-16 p-6 border border-gray-300 rounded-lg text-center shadow bg-white">
+        <h2 className="text-xl font-semibold">Entre no Chat</h2>
 
         <input
           type="text"
           placeholder="Digite seu nome..."
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginTop: "20px",
-            borderRadius: "6px",
-            border: "1px solid #bbb"
-          }}
+          onKeyDown={(e) => e.key === "Enter" && entrarNoChat()}
+          className="w-full p-3 mt-5 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-3"
         />
 
         <Button onClick={entrarNoChat}>Entrar</Button>

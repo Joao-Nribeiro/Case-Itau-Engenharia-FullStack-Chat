@@ -1,8 +1,11 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import Button from "../components/Button";
 import { createSocket } from "../services/websocket";
 import { v4 as uuid } from "uuid";
+
+import Messages from "../components/Messages";
+import ChatHeader from "../components/ChatHeader";
+import InputField from "../components/InputField";
 
 export default function Chat() {
   const [search] = useSearchParams();
@@ -40,17 +43,13 @@ export default function Chat() {
       if (data.type === "system") {
         setMessages((prev) => [
           ...prev,
-          {
-            type: "system",
-            text: data.message,
-          },
+          { type: "system", text: data.message },
         ]);
         return;
       }
 
       setMessages((prev) => {
         const exists = prev.find((m) => m.id === data.id);
-
         if (exists) {
           return prev.map((m) =>
             m.id === data.id ? { ...m, status: data.status } : m
@@ -72,16 +71,10 @@ export default function Chat() {
       });
     };
 
-    socket.onclose = () => {
-      console.log("WebSocket desconectado");
-    };
+    socket.onclose = () => console.log("WebSocket desconectado");
 
     return () => socket.close();
   }, [username]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -114,117 +107,23 @@ export default function Chat() {
   }
 
   return (
-    <div>
-      <div
-        style={{
-          maxWidth: "600px",
-          margin: "20px auto",
-          border: "1px solid #ddd",
-          borderRadius: "10px",
-          overflow: "hidden",
-          padding: "20px",
-        }}
-      >
-        <h2>Chat</h2>
-        <p style={{ color: "#666" }}>
-          Você está logado como <b>{username}</b>
-        </p>
+    <div className="w-full flex justify-center py-6 px-3">
+      <div className="w-full max-w-xl bg-white border border-gray-300 rounded-lg pl-5 pr-5 pt-5 shadow-sm">
+        <ChatHeader username={username} />
 
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {messages.map((m, i) => {
-            if (m.type === "system") {
-              return (
-                <div
-                  key={i}
-                  style={{
-                    textAlign: "center",
-                    color: "#777",
-                    fontStyle: "italic",
-                    margin: "10px 0",
-                  }}
-                >
-                  {m.text}
-                </div>
-              );
-            }
+        <Messages
+          messages={messages}
+          username={username}
+          formatTime={formatTime}
+          messagesEndRef={messagesEndRef}
+        />
 
-            const isMine = m.username === username;
+        <InputField
+          msg={msg}
+          setMsg={setMsg}
+          enviarMensagem={enviarMensagem}
+        />
 
-            return (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: isMine ? "flex-end" : "flex-start",
-                  marginBottom: "10px",
-                }}
-              >
-                <div
-                  style={{
-                    padding: "10px",
-                    background: isMine ? "#4c6ef5" : "#edf0ff",
-                    color: isMine ? "white" : "black",
-                    borderRadius: "10px",
-                    maxWidth: "70%",
-                  }}
-                >
-                  {!isMine && <b>{m.username}</b>}
-                  {!isMine && <br />}
-
-                  {m.text}
-
-                  <div
-                    style={{
-                      marginTop: "5px",
-                      fontSize: "11px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      opacity: 0.8,
-                    }}
-                  >
-                    <span>{formatTime(m.timestamp)}</span>
-
-                    {isMine && (
-                      <span style={{ marginLeft: "10px" }}>
-                        {m.status === "sent" && "•"}
-                        {m.status === "received" && "✓"}
-                        {m.status === "delivered" && "✓✓"}
-                        {m.status === "read" && (
-                          <span style={{ color: "#00c3ff" }}>✓✓</span>
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
-          <input
-            type="text"
-            placeholder="Digite uma mensagem..."
-            value={msg}
-            onChange={(e) => setMsg(e.target.value)}
-            style={{
-              flex: 1,
-              padding: "10px",
-              borderRadius: "6px",
-              border: "1px solid #aaa",
-            }}
-            onKeyDown={(e) => e.key === "Enter" && enviarMensagem()}
-          />
-
-          <Button onClick={enviarMensagem}>Enviar</Button>
-        </div>
       </div>
     </div>
   );
