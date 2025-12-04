@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createSocket } from "../services/websocket";
+import { createSocket, getSocket, addMessageListener } from "../services/websocket";
 import { v4 as uuid } from "uuid";
 
 import Messages from "../components/Messages";
@@ -23,35 +23,35 @@ export default function Chat() {
     const socket = createSocket(username);
     socketRef.current = socket;
 
-    socket.onmessage = (event) => {
+    addMessageListener((event) => {
+      if (!event?.data) return;
+
       const data = JSON.parse(event.data);
 
       if (data.type === "ack") {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === data.id ? { ...m, status: "received" } : m))
+        setMessages(prev =>
+          prev.map(m => m.id === data.id ? { ...m, status: "received" } : m)
         );
         return;
       }
 
       if (data.type === "read") {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === data.id ? { ...m, status: "read" } : m))
+        setMessages(prev =>
+          prev.map(m => m.id === data.id ? { ...m, status: "read" } : m)
         );
         return;
       }
 
       if (data.type === "system") {
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: data.message },
-        ]);
+        setMessages(prev => [...prev, { type: "system", text: data.message }]);
         return;
       }
 
-      setMessages((prev) => {
-        const exists = prev.find((m) => m.id === data.id);
+      setMessages(prev => {
+        const exists = prev.find(m => m.id === data.id);
+
         if (exists) {
-          return prev.map((m) =>
+          return prev.map(m =>
             m.id === data.id ? { ...m, status: data.status } : m
           );
         }
@@ -59,21 +59,14 @@ export default function Chat() {
         const isMine = data.username === username;
 
         if (!isMine) {
-          socketRef.current.send(
-            JSON.stringify({
-              type: "read",
-              id: data.id,
-            })
-          );
+          const s = getSocket();
+          s?.send(JSON.stringify({ type: "read", id: data.id }));
         }
 
         return [...prev, data];
       });
-    };
+    });
 
-    socket.onclose = () => console.log("WebSocket desconectado");
-
-    return () => socket.close();
   }, [username]);
 
   useEffect(() => {
@@ -83,7 +76,7 @@ export default function Chat() {
   function enviarMensagem() {
     if (!msg.trim()) return;
 
-    const messageData = {
+    const message = {
       id: uuid(),
       type: "message",
       username,
@@ -92,9 +85,10 @@ export default function Chat() {
       timestamp: Date.now(),
     };
 
-    socketRef.current.send(JSON.stringify(messageData));
+    const socket = getSocket();
+    socket?.send(JSON.stringify(message));
 
-    setMessages((prev) => [...prev, messageData]);
+    setMessages(prev => [...prev, message]);
     setMsg("");
   }
 
@@ -102,13 +96,14 @@ export default function Chat() {
     if (!ts) return "";
     return new Date(ts).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
-      minute: "2-digit",
+      minute: "2-digit"
     });
   }
 
   return (
     <div className="w-full flex justify-center py-6 px-3">
       <div className="w-full max-w-xl bg-white border border-gray-300 rounded-lg pl-5 pr-5 pt-5 shadow-sm">
+
         <ChatHeader username={username} />
 
         <Messages
@@ -123,7 +118,6 @@ export default function Chat() {
           setMsg={setMsg}
           enviarMensagem={enviarMensagem}
         />
-
       </div>
     </div>
   );
