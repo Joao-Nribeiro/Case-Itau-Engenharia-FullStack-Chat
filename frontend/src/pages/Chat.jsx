@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createSocket, getSocket, addMessageListener, sendMessage } from "../services/websocket";
+import { createSocket, safeSend, addMessageListener, sendMessage } from "../services/websocket";
 import { v4 as uuid } from "uuid";
 
 import Messages from "../components/Messages";
@@ -17,9 +17,7 @@ export default function Chat() {
   });
 
   const [msg, setMsg] = useState("");
-
   const messagesEndRef = useRef(null);
-  const listenerAttached = useRef(false);
 
   useEffect(() => {
     localStorage.setItem("messages", JSON.stringify(messages));
@@ -32,34 +30,22 @@ export default function Chat() {
 
       if (data.type === "ack") {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === data.id ? { ...m, status: "received" } : m
-          )
+          prev.map((m) => (m.id === data.id ? { ...m, status: "received" } : m))
         );
         return;
       }
 
       if (data.type === "read") {
         setMessages((prev) =>
-          prev.map((m) =>
-            m.id === data.id ? { ...m, status: "read" } : m
-          )
+          prev.map((m) => (m.id === data.id ? { ...m, status: "read" } : m))
         );
         return;
       }
 
       if (data.type === "system") {
-        const exists = messages.some(
-          (m) => m.type === "system" && m.text === data.message
-        );
-
-        if (!exists) {
-          setMessages((prev) => [
-            ...prev,
-            { id: uuid(), type: "system", text: data.message },
-          ]);
-        }
-
+        setMessages((prev) => {
+          return [...prev, { id: uuid(), type: "system", text: data.message }];
+        });
         return;
       }
 
@@ -70,35 +56,26 @@ export default function Chat() {
         const isMine = data.username === username;
 
         if (!isMine) {
-          const s = getSocket();
-          s?.send(JSON.stringify({ type: "read", id: data.id }));
+          safeSend({ type: "read", id: data.id });
         }
 
         return [...prev, data];
       });
     },
-    [username, messages]
+    [username]
   );
 
   useEffect(() => {
     if (!username) return;
 
+    addMessageListener(handleMessage);
+
     const socket = createSocket(username);
 
     return () => {
-      if (socket) {
-        socket.removeEventListener("message", handleMessage);
-      }
-      listenerAttached.current = false;
+      socket?.removeEventListener("message", handleMessage);
     };
-  }, [username]);
-
-  useEffect(() => {
-    if (!listenerAttached.current) {
-      addMessageListener(handleMessage);
-      listenerAttached.current = true;
-    }
-  }, [handleMessage]);
+  }, [username, handleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

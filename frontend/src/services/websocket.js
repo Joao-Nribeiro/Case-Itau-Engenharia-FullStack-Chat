@@ -6,10 +6,26 @@ let usernameCache = null;
 
 let listeners = [];
 let pendingMessages = [];
-
 let listenersApplied = false;
 
+function flushPending() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+  const toSend = [...pendingMessages];
+  pendingMessages = [];
+
+  toSend.forEach((msg) => {
+    try {
+      socket.send(JSON.stringify(msg));
+    } catch {
+      pendingMessages.push(msg);
+    }
+  });
+}
+
 export function createSocket(username) {
+  if (socket) return socket;
+
   usernameCache = username;
 
   function connect() {
@@ -18,18 +34,12 @@ export function createSocket(username) {
     socket.onopen = () => {
       console.log("WebSocket conectado");
 
-      socket.send(
-        JSON.stringify({
-          type: "join",
-          username: usernameCache,
-        })
-      );
-
-      pendingMessages.forEach((msg) => {
-        socket.send(JSON.stringify(msg));
+      safeSend({
+        type: "join",
+        username: usernameCache,
       });
-      pendingMessages = [];
 
+      setTimeout(() => flushPending(), 50);
       reconnectInterval = 1000;
 
       if (!listenersApplied) {
@@ -42,7 +52,6 @@ export function createSocket(username) {
 
     socket.onclose = () => {
       console.warn("WebSocket desconectado. Reconectando");
-
       listenersApplied = false;
 
       setTimeout(() => {
@@ -66,7 +75,7 @@ export function getSocket() {
 }
 
 export function addMessageListener(fn) {
-  if (!listeners.includes(fn)) {
+  if (listeners.indexOf(fn) === -1) {
     listeners.push(fn);
   }
 
@@ -76,11 +85,24 @@ export function addMessageListener(fn) {
 }
 
 export function sendMessage(data) {
+  if (!safeSend(data)) {
+    pendingMessages.push(data);
+    return false;
+  }
+  return true;
+}
+
+export function safeSend(data) {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
     pendingMessages.push(data);
     return false;
   }
 
-  socket.send(JSON.stringify(data));
-  return true;
+  try {
+    socket.send(JSON.stringify(data));
+    return true;
+  } catch {
+    pendingMessages.push(data);
+    return false;
+  }
 }

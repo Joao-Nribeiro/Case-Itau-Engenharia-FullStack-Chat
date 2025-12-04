@@ -16,6 +16,16 @@ async def websocket_chat(websocket: WebSocket):
 
             if msg_type == "join":
                 manager.register_user(websocket, username)
+
+                await manager.send_history(websocket)
+
+                for old in manager.messages_history:
+                    if old["username"] != username:
+                        await manager.broadcast_except_sender({
+                            "type": "read",
+                            "id": old["id"]
+                        }, sender=websocket)
+
                 await manager.broadcast({
                     "type": "system",
                     "message": f"{username} entrou no chat."
@@ -25,28 +35,26 @@ async def websocket_chat(websocket: WebSocket):
             if msg_type == "message":
                 msg_id = data["id"]
 
-                await websocket.send_json({
-                    "type": "ack",
-                    "id": msg_id
-                })
+                await websocket.send_json({"type": "ack", "id": msg_id})
 
                 formatted = {
                     "id": msg_id,
                     "type": "message",
                     "username": username,
                     "text": data.get("text"),
-                    "status": "delivered",
                     "timestamp": data.get("timestamp"),
+                    "status": "delivered"
                 }
 
+                await manager.store_message(formatted)
                 await manager.broadcast(formatted)
                 continue
 
             if msg_type == "read":
-                await manager.broadcast_except_sender({
+                await manager.broadcast({
                     "type": "read",
                     "id": data["id"]
-                }, sender=websocket)
+                })
                 continue
 
     except Exception:
