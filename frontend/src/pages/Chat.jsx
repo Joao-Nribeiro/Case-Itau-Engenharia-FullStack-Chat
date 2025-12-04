@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createSocket, getSocket, addMessageListener } from "../services/websocket";
+import { createSocket, getSocket, addMessageListener, sendMessage } from "../services/websocket";
 import { v4 as uuid } from "uuid";
 
 import Messages from "../components/Messages";
@@ -11,50 +11,61 @@ export default function Chat() {
   const [search] = useSearchParams();
   const username = search.get("user");
 
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem("messages");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [msg, setMsg] = useState("");
 
-  const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const listenerAttached = useRef(false);
 
   useEffect(() => {
-    if (!username) return;
+    localStorage.setItem("messages", JSON.stringify(messages));
+  }, [messages]);
 
-    const socket = createSocket(username);
-    socketRef.current = socket;
-
-    addMessageListener((event) => {
+  const handleMessage = useCallback(
+    (event) => {
       if (!event?.data) return;
-
       const data = JSON.parse(event.data);
 
       if (data.type === "ack") {
-        setMessages(prev =>
-          prev.map(m => m.id === data.id ? { ...m, status: "received" } : m)
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === data.id ? { ...m, status: "received" } : m
+          )
         );
         return;
       }
 
       if (data.type === "read") {
-        setMessages(prev =>
-          prev.map(m => m.id === data.id ? { ...m, status: "read" } : m)
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === data.id ? { ...m, status: "read" } : m
+          )
         );
         return;
       }
 
       if (data.type === "system") {
-        setMessages(prev => [...prev, { type: "system", text: data.message }]);
+        const exists = messages.some(
+          (m) => m.type === "system" && m.text === data.message
+        );
+
+        if (!exists) {
+          setMessages((prev) => [
+            ...prev,
+            { id: uuid(), type: "system", text: data.message },
+          ]);
+        }
+
         return;
       }
 
-      setMessages(prev => {
-        const exists = prev.find(m => m.id === data.id);
-
-        if (exists) {
-          return prev.map(m =>
-            m.id === data.id ? { ...m, status: data.status } : m
-          );
-        }
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.id === data.id);
+        if (exists) return prev;
 
         const isMine = data.username === username;
 
@@ -65,9 +76,29 @@ export default function Chat() {
 
         return [...prev, data];
       });
-    });
+    },
+    [username, messages]
+  );
 
+  useEffect(() => {
+    if (!username) return;
+
+    const socket = createSocket(username);
+
+    return () => {
+      if (socket) {
+        socket.removeEventListener("message", handleMessage);
+      }
+      listenerAttached.current = false;
+    };
   }, [username]);
+
+  useEffect(() => {
+    if (!listenerAttached.current) {
+      addMessageListener(handleMessage);
+      listenerAttached.current = true;
+    }
+  }, [handleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,7 +107,7 @@ export default function Chat() {
   function enviarMensagem() {
     if (!msg.trim()) return;
 
-    const message = {
+    const messageData = {
       id: uuid(),
       type: "message",
       username,
@@ -85,10 +116,10 @@ export default function Chat() {
       timestamp: Date.now(),
     };
 
-    const socket = getSocket();
-    socket?.send(JSON.stringify(message));
+    const sent = sendMessage(messageData);
+    if (!sent) messageData.status = "pending";
 
-    setMessages(prev => [...prev, message]);
+    setMessages((prev) => [...prev, messageData]);
     setMsg("");
   }
 
@@ -96,14 +127,13 @@ export default function Chat() {
     if (!ts) return "";
     return new Date(ts).toLocaleTimeString("pt-BR", {
       hour: "2-digit",
-      minute: "2-digit"
+      minute: "2-digit",
     });
   }
 
   return (
     <div className="w-full flex justify-center py-6 px-3">
       <div className="w-full max-w-xl bg-white border border-gray-300 rounded-lg pl-5 pr-5 pt-5 shadow-sm">
-
         <ChatHeader username={username} />
 
         <Messages
@@ -113,11 +143,7 @@ export default function Chat() {
           messagesEndRef={messagesEndRef}
         />
 
-        <InputField
-          msg={msg}
-          setMsg={setMsg}
-          enviarMensagem={enviarMensagem}
-        />
+        <InputField msg={msg} setMsg={setMsg} enviarMensagem={enviarMensagem} />
       </div>
     </div>
   );

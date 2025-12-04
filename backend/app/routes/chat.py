@@ -11,10 +11,8 @@ async def websocket_chat(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-
             msg_type = data.get("type")
             username = data.get("username")
-            text = data.get("text", "")
 
             if msg_type == "join":
                 manager.register_user(websocket, username)
@@ -36,9 +34,9 @@ async def websocket_chat(websocket: WebSocket):
                     "id": msg_id,
                     "type": "message",
                     "username": username,
-                    "text": text,
+                    "text": data.get("text"),
                     "status": "delivered",
-                    "timestamp": data.get("timestamp")
+                    "timestamp": data.get("timestamp"),
                 }
 
                 await manager.broadcast(formatted)
