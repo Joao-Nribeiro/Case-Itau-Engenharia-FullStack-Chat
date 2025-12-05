@@ -3,6 +3,7 @@ from fastapi import WebSocket
 class ConnectionManager:
     def __init__(self):
         self.active_connections: dict[WebSocket, str] = {}
+        self.messages_history: list[dict] = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -16,6 +17,16 @@ class ConnectionManager:
 
     def get_username(self, websocket: WebSocket):
         return self.active_connections.get(websocket)
+
+    async def send_history(self, websocket: WebSocket):
+        for msg in self.messages_history:
+            try:
+                await websocket.send_json(msg)
+            except:
+                pass
+
+    async def store_message(self, message: dict):
+        self.messages_history.append(message)
 
     async def broadcast(self, message: dict):
         for connection in list(self.active_connections.keys()):

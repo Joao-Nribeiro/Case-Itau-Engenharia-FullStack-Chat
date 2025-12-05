@@ -1,5 +1,5 @@
 import SystemMessage from "./SystemMessage";
-import UserMessage from "./UserMessages";
+import UserMessages from "./UserMessages";
 
 export default function Messages({
   messages,
@@ -9,11 +9,14 @@ export default function Messages({
 }) {
   return (
     <div className="h-[60vh] overflow-y-auto flex flex-col gap-2 pr-1">
-      {messages.map((m) =>
+      {messages.map((m, index) =>
         m.type === "system" ? (
-          <SystemMessage key={m.id || m.timestamp} text={m.text} />
+          <SystemMessage 
+            key={`system-${index}`} 
+            text={m.text} 
+          />
         ) : (
-          <UserMessage
+          <UserMessages
             key={m.id}
             message={m}
             isMine={m.username === username}

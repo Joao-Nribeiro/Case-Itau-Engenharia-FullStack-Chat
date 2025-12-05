@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createSocket } from "../services/websocket";
+import { createSocket, safeSend, addMessageListener, sendMessage } from "../services/websocket";
 import { v4 as uuid } from "uuid";
 
 import Messages from "../components/Messages";
@@ -11,19 +11,21 @@ export default function Chat() {
   const [search] = useSearchParams();
   const username = search.get("user");
 
-  const [messages, setMessages] = useState([]);
-  const [msg, setMsg] = useState("");
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem("messages");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  const socketRef = useRef(null);
+  const [msg, setMsg] = useState("");
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (!username) return;
+    localStorage.setItem("messages", JSON.stringify(messages));
+  }, [messages]);
 
-    const socket = createSocket(username);
-    socketRef.current = socket;
-
-    socket.onmessage = (event) => {
+  const handleMessage = useCallback(
+    (event) => {
+      if (!event?.data) return;
       const data = JSON.parse(event.data);
 
       if (data.type === "ack") {
@@ -41,40 +43,39 @@ export default function Chat() {
       }
 
       if (data.type === "system") {
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: data.message },
-        ]);
+        setMessages((prev) => {
+          return [...prev, { id: uuid(), type: "system", text: data.message }];
+        });
         return;
       }
 
       setMessages((prev) => {
-        const exists = prev.find((m) => m.id === data.id);
-        if (exists) {
-          return prev.map((m) =>
-            m.id === data.id ? { ...m, status: data.status } : m
-          );
-        }
+        const exists = prev.some((m) => m.id === data.id);
+        if (exists) return prev;
 
         const isMine = data.username === username;
 
         if (!isMine) {
-          socketRef.current.send(
-            JSON.stringify({
-              type: "read",
-              id: data.id,
-            })
-          );
+          safeSend({ type: "read", id: data.id });
         }
 
         return [...prev, data];
       });
+    },
+    [username]
+  );
+
+  useEffect(() => {
+    if (!username) return;
+
+    addMessageListener(handleMessage);
+
+    const socket = createSocket(username);
+
+    return () => {
+      socket?.removeEventListener("message", handleMessage);
     };
-
-    socket.onclose = () => console.log("WebSocket desconectado");
-
-    return () => socket.close();
-  }, [username]);
+  }, [username, handleMessage]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -92,7 +93,8 @@ export default function Chat() {
       timestamp: Date.now(),
     };
 
-    socketRef.current.send(JSON.stringify(messageData));
+    const sent = sendMessage(messageData);
+    if (!sent) messageData.status = "pending";
 
     setMessages((prev) => [...prev, messageData]);
     setMsg("");
@@ -118,12 +120,7 @@ export default function Chat() {
           messagesEndRef={messagesEndRef}
         />
 
-        <InputField
-          msg={msg}
-          setMsg={setMsg}
-          enviarMensagem={enviarMensagem}
-        />
-
+        <InputField msg={msg} setMsg={setMsg} enviarMensagem={enviarMensagem} />
       </div>
     </div>
   );

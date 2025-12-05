@@ -11,45 +11,50 @@ async def websocket_chat(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-
             msg_type = data.get("type")
             username = data.get("username")
-            text = data.get("text", "")
 
             if msg_type == "join":
                 manager.register_user(websocket, username)
 
-                join_message = {
+                await manager.send_history(websocket)
+
+                for old in manager.messages_history:
+                    if old["username"] != username:
+                        await manager.broadcast_except_sender({
+                            "type": "read",
+                            "id": old["id"]
+                        }, sender=websocket)
+
+                await manager.broadcast({
                     "type": "system",
                     "message": f"{username} entrou no chat."
-                }
-                await manager.broadcast(join_message)
+                })
                 continue
 
             if msg_type == "message":
                 msg_id = data["id"]
 
-                await websocket.send_json({
-                    "type": "ack",
-                    "id": msg_id
-                })
+                await websocket.send_json({"type": "ack", "id": msg_id})
 
                 formatted = {
                     "id": msg_id,
                     "type": "message",
                     "username": username,
-                    "text": text,
-                    "status": "delivered",
-                    "timestamp": data.get("timestamp")
+                    "text": data.get("text"),
+                    "timestamp": data.get("timestamp"),
+                    "status": "delivered"
                 }
+
+                await manager.store_message(formatted)
                 await manager.broadcast(formatted)
                 continue
 
             if msg_type == "read":
-                await manager.broadcast_except_sender({
+                await manager.broadcast({
                     "type": "read",
                     "id": data["id"]
-                }, sender=websocket)
+                })
                 continue
 
     except Exception:
@@ -57,13 +62,10 @@ async def websocket_chat(websocket: WebSocket):
 
     finally:
         username = manager.get_username(websocket)
-
         manager.disconnect(websocket)
 
         if username:
-            leave_message = {
+            await manager.broadcast({
                 "type": "system",
                 "message": f"{username} saiu do chat."
-            }
-
-            await manager.broadcast(leave_message)
+            })
