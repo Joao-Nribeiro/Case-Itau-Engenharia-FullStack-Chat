@@ -19,61 +19,59 @@
 
 # Execução do Projeto
 
-0. Requisitos
-    Python 3.10
-    Node v22.12
+### 0. **Requisitos**
+       Python 3.10
+       Node v22.12
 
-1. Clonar Repositório
+### 1. **Clonar Repositório**
     https://github.com/Joao-Nribeiro/Case-Itau-Engenharia-FullStack-Chat.git
-
     cd Case-Itau-Engenharia-FullStack-Chat
 
 
-2. Habilitar FrontEnd:
+### 2. **Habilitar FrontEnd**
     cd .\frontend\
     npm install
     npm run dev
     Aplicação em "http://localhost:5173/"
 
-3. Habilitar BackEnd:
+### 4. **Habilitar BackEnd**
     cd .\backend\
     python -m venv v_env
     v_env\Scripts\activate
     pip install -r requirements.txt
     uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
-# Estrutura do Projeto
-Case-Itau-Engenharia-FullStack-Chat/
-│
-├── frontend/ 
-│   ├── index.html
-│   ├── node_modules/
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── yarn.lock
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   ├── vite.config.js
-│   ├── eslint.config.js
-│   ├── public/
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── services/
-│       ├── app.jsx
-│       ├── index.css
-│       └── main.jsx
-│
-├── backend/      
-│   ├── main.py
-│   ├── requirements.txt
-│   ├── v_env/
-│   └── app/
-│       ├── routes/
-│       └── services/
-│
-├── .gitignore
-└── README.md
+### **Estrutura do Projeto**
+    Case-Itau-Engenharia-FullStack-Chat/
+    ├── frontend/
+    │   ├── index.html
+    │   ├── node_modules/
+    │   ├── package.json
+    │   ├── package-lock.json
+    │   ├── yarn.lock
+    │   ├── tailwind.config.js
+    │   ├── postcss.config.js
+    │   ├── vite.config.js
+    │   ├── eslint.config.js
+    │   ├── public/
+    │   └── src/
+    │       ├── components/
+    │       ├── pages/
+    │       ├── services/
+    │       ├── app.jsx
+    │       ├── index.css
+    │       └── main.jsx
+    │
+    ├── backend/
+    │   ├── main.py
+    │   ├── requirements.txt
+    │   ├── v_env/
+    │   └── app/
+    │       ├── routes/
+    │       └── services/
+    │
+    ├── .gitignore
+    └── README.md
 
 # **Decisões técnicas e justificativas**
     Escolha de tailwindCSS
