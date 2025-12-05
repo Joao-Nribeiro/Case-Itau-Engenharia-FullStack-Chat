@@ -1,5 +1,5 @@
 import SystemMessage from "./SystemMessage";
-import UserMessage from "./UserMessages";
+import UserMessages from "./UserMessages";
 
 export default function Messages({
   messages,
@@ -16,7 +16,7 @@ export default function Messages({
             text={m.text} 
           />
         ) : (
-          <UserMessage
+          <UserMessages
             key={m.id}
             message={m}
             isMine={m.username === username}
